@@ -1,0 +1,14 @@
+github.com/gabe-lee/color v1.0.0 h1:iAQbmYc72DdI9CEH9ume/Z0moAL9VGC5M05qeeBI3S4=
+github.com/gabe-lee/color v1.0.0/go.mod h1:M+MnQgBDWArqSJ4S9SggEtC8Bkr5GTGcxlL6gGzMvc0=
+github.com/gabe-lee/gengeom v0.1.2 h1:lwEJ76WTKK73pX1fzxKabZnuFwddR8uDCyipd6ONYII=
+github.com/gabe-lee/gengeom v0.1.2/go.mod h1:2mt5GC2VWh8wYHaVrjdO/ixG3n3i3c7IkVfEsqruORo=
+github.com/gabe-lee/genmath v1.1.0 h1:lWyWC7Qvd6ZjzhFHRJqXtRpCDNO3zhtYxJMMDfewdiA=
+github.com/gabe-lee/genmath v1.1.0/go.mod h1:bT45kaN5bu3kZW562244x7ze+Ha8iGAAepHZTIS4zgQ=
+github.com/gabe-lee/genmath v1.3.0 h1:A7wsFJGchE3e86jRvChBCPvHzAAiNuQE1sZ3cv5v9/I=
+github.com/gabe-lee/genmath v1.3.0/go.mod h1:bT45kaN5bu3kZW562244x7ze+Ha8iGAAepHZTIS4zgQ=
+github.com/gabe-lee/genvecs v0.3.0 h1:riQD3Aza20AgEQ2uWE560Y5SxSoXAoJke3XW5lNQkcU=
+github.com/gabe-lee/genvecs v0.3.0/go.mod h1:01fiZT2aCeXD2ZbR2W/5HiT5875Tw5C3CsMVrv65A6Q=
+github.com/gabe-lee/genvecs v0.4.0 h1:aJDPZZatfF3jK5glsSIEpSGSNGayBeyZMpkPcEFpHe0=
+github.com/gabe-lee/genvecs v0.4.0/go.mod h1:01fiZT2aCeXD2ZbR2W/5HiT5875Tw5C3CsMVrv65A6Q=
+github.com/gabe-lee/genvecs v0.4.1 h1:9TaJbNGZs5ox/eGz66kXpDGRPvmlwCsfSIsPOYkNsog=
+github.com/gabe-lee/genvecs v0.4.1/go.mod h1:01fiZT2aCeXD2ZbR2W/5HiT5875Tw5C3CsMVrv65A6Q=
