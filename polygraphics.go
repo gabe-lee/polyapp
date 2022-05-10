@@ -1,8 +1,6 @@
 package polyapp
 
 import (
-	"os"
-
 	geom "github.com/gabe-lee/gengeom"
 	math "github.com/gabe-lee/genmath"
 )
@@ -66,30 +64,11 @@ type Texture struct {
 	TexUnit uint32
 }
 
-func (t *Texture) Load() error {
-	data, err := os.ReadFile(t.File)
-	if err != nil {
-		return err
-	}
-	t.Data = data
-	return nil
-}
-
 type Shader struct {
 	SType ShaderType
 	Code  string
 	Data  []byte
 	File  string
-}
-
-func (s *Shader) Load() error {
-	data, err := os.ReadFile(s.File)
-	if err != nil {
-		return err
-	}
-	s.Data = data
-	s.Code = string(data)
-	return nil
 }
 
 /**************
