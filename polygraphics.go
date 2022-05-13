@@ -11,7 +11,7 @@ type GraphicsInterface interface {
 	AddRenderer(shaders []*Shader) (rendererID uint8)
 	AddDrawBatch(initialSize uint32) (batchID uint8)
 	AddTexture(texture *Texture) (textureID uint8)
-	AddDrawSurface(size Vec2) (surfaceID uint8)
+	AddDrawSurface(size Vec2) (surfaceID uint8, textureID uint8)
 
 	ClearDrawSurface(surfaceID uint8, baseColor Color)
 	ClearDrawSurfaceArea(surfaceID uint8, baseColor Color, area Rect2D)
