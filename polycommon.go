@@ -1,7 +1,7 @@
 package polyapp
 
 import (
-	color "github.com/gabe-lee/color"
+	color "github.com/gabe-lee/gencolor"
 	vecs "github.com/gabe-lee/genvecs"
 )
 
@@ -19,7 +19,7 @@ type Quad3D = vecs.F32Quad3
 type IQuad3D = vecs.I32Quad3
 type Line2D = vecs.F32Line2
 type Line3D = vecs.F32Line3
-type Color = color.Color
+type Color32 = color.U8x4Color
 
 type InputState uint8
 
