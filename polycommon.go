@@ -46,6 +46,3 @@ const (
 	ImgBMP
 	ImgWEBP
 )
-
-type Shader = poly.Shader
-type Texture = poly.Tex
