@@ -16,7 +16,8 @@ type GraphicsInterface interface {
 	ClearSurface(surfaceID uint8, baseColor Color32)
 	ClearSurfaceArea(surfaceID uint8, baseColor Color32, area IRect2D)
 
-	DrawBatch(batchID uint8, surfaceID uint8, rendererID uint8)
+	DrawBatch2D(batchID uint8, surfaceID uint8, rendererID uint8)
+	DrawBatch3D(batchID uint8, surfaceID uint8, rendererID uint8)
 
 	AddVertexToBatch2D(batchID uint8, position Vec2, color Color32, textureID uint8, textureUV Vec2, extra uint32) (index uint16)
 	AddVertexToBatch3D(batchID uint8, position Vec3, color Color32, textureID uint8, textureUV Vec2, extra uint32) (index uint16)
