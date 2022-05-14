@@ -8,19 +8,19 @@ import (
 type GraphicsInterface interface {
 	GetWindowSize() Vec2
 
-	AddRenderer(shaders []*Shader) (rendererID uint8)
-	AddDrawBatch(initialSize uint32) (batchID uint8)
-	AddTexture(texture *Texture) (textureID uint8)
-	AddDrawSurface(size Vec2) (surfaceID uint8, textureID uint8)
+	AddRenderer(shaders []*Shader) (rendererID uint8, err error)
+	AddDrawBatch(initialSize uint32) (batchID uint8, err error)
+	AddTexture(texture *Texture) (textureID uint8, err error)
+	AddDrawSurface(size Vec2) (surfaceID uint8, textureID uint8, err error)
 
-	ClearDrawSurface(surfaceID uint8, baseColor Color)
-	ClearDrawSurfaceArea(surfaceID uint8, baseColor Color, area Rect2D)
+	ClearSurface(surfaceID uint8, baseColor Color32)
+	ClearSurfaceArea(surfaceID uint8, baseColor Color32, area IRect2D)
 
 	DrawBatchIndexedTriangles2D(batchID uint8, surfaceID uint8, rendererID uint8)
 	DrawBatchIndexedTriangles3D(batchID uint8, surfaceID uint8, rendererID uint8)
 
-	AddVertexToBatch2D(batchID uint8, position Vec2, color Color, textureID uint8, textureUV Vec2, flags uint16) (index uint16)
-	AddVertexToBatch3D(batchID uint8, position Vec3, color Color, textureID uint8, textureUV Vec2, flags uint16) (index uint16)
+	AddVertexToBatch2D(batchID uint8, position Vec2, color Color32, textureID uint8, textureUV Vec2, flags uint16) (index uint16)
+	AddVertexToBatch3D(batchID uint8, position Vec3, color Color32, textureID uint8, textureUV Vec2, flags uint16) (index uint16)
 	AddIndexesToBatch(batchID uint8, indexes ...uint16)
 	ClearBatch(batchID uint8)
 }
