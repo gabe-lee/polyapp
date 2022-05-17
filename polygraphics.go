@@ -5,22 +5,28 @@ import (
 	math "github.com/gabe-lee/genmath"
 )
 
+type VertexSpace uint8
+
+const (
+	V2D VertexSpace = 2
+	V3D VertexSpace = 3
+)
+
 type GraphicsInterface interface {
 	GetWindowSize() Vec2
 
-	AddRenderer(shaders []*Shader) (rendererID uint8, err error)
-	AddDrawBatch(initialSize uint32) (batchID uint8, err error)
+	AddRenderer(space VertexSpace, shaders []*Shader) (rendererID uint8, err error)
+	AddDrawBatch(space VertexSpace, initialSize uint32, textureID uint8) (batchID uint8, err error)
 	AddTexture(texture *Texture) (textureID uint8, err error)
 	AddDrawSurface(size IVec2) (surfaceID uint8, textureID uint8, err error)
 
 	ClearSurface(surfaceID uint8, baseColor Color32)
 	ClearSurfaceArea(surfaceID uint8, baseColor Color32, area IRect2D)
 
-	DrawBatch2D(batchID uint8, surfaceID uint8, rendererID uint8)
-	DrawBatch3D(batchID uint8, surfaceID uint8, rendererID uint8)
+	DrawBatch(batchID uint8, surfaceID uint8, rendererID uint8)
 
 	AddVertexToBatch2D(batchID uint8, position Vec2, color Color32, textureUV Vec2, extra uint32) (index uint16)
-	AddVertexToBatch3D(batchID uint8, position Vec3, color Color32, textureID uint8, textureUV Vec2, extra uint32) (index uint16)
+	AddVertexToBatch3D(batchID uint8, position Vec3, color Color32, textureUV Vec2, extra uint32) (index uint16)
 	AddIndexesToBatch(batchID uint8, indexes ...uint16)
 	ClearBatch(batchID uint8)
 }
