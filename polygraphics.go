@@ -5,18 +5,11 @@ import (
 	math "github.com/gabe-lee/genmath"
 )
 
-type VertexSpace uint8
-
-const (
-	V2D VertexSpace = 2
-	V3D VertexSpace = 3
-)
-
 type GraphicsInterface interface {
 	GetWindowSize() Vec2
 
-	AddRenderer(space VertexSpace, shaders []*Shader) (rendererID uint8, err error)
-	AddDrawBatch(space VertexSpace, initialSize uint32, textureID uint8) (batchID uint8, err error)
+	AddRenderer(shaders []*Shader) (rendererID uint8, err error)
+	AddDrawBatch(textureID uint8, initialSize uint32) (batchID uint8, err error)
 	AddTexture(texture *Texture) (textureID uint8, err error)
 	AddDrawSurface(size IVec2) (surfaceID uint8, textureID uint8, err error)
 
@@ -25,9 +18,12 @@ type GraphicsInterface interface {
 
 	DrawBatch(batchID uint8, surfaceID uint8, rendererID uint8)
 
-	AddVertexToBatch2D(batchID uint8, position Vec2, color Color32, textureUV Vec2, extra uint32) (index uint16)
-	AddVertexToBatch3D(batchID uint8, position Vec3, color Color32, textureUV Vec2, extra uint32) (index uint16)
-	AddIndexesToBatch(batchID uint8, indexes ...uint16)
+	AddVertexToBatch2D(batchID uint8, position Vec2, color Color32, textureUV Vec2, extra uint32) (vertIndex uint16)
+	AddVertexToBatch3D(batchID uint8, position Vec3, color Color32, textureUV Vec2, extra uint32) (vertIndex uint16)
+	UpdateVertexInBatch2D(batchID uint8, vertIndex uint16, position Vec2, color Color32, textureUV Vec2, extra uint32)
+	UpdateVertexInBatch3D(batchID uint8, vertIndex uint16, position Vec2, color Color32, textureUV Vec2, extra uint32)
+	AddIndexesToBatch(batchID uint8, vertIndexes ...uint16) (indexSlice []uint16)
+	DeleteIndexesFromBatch(batchID uint8, indexSlice []uint16)
 	ClearBatch(batchID uint8)
 }
 
@@ -36,6 +32,53 @@ var _ GraphicsInterface = (*GraphicsProvider)(nil)
 type GraphicsProvider struct {
 	App *App
 	GraphicsInterface
+}
+
+var ninf = math.NInf32()
+
+var NoUV = Vec2{ninf, ninf}
+var NoDraw2D = Vec2{ninf, ninf}
+var NoDraw3D = Vec3{ninf, ninf, ninf}
+
+type VertexSpace uint8
+
+const (
+	V2D VertexSpace = 2
+	V3D VertexSpace = 3
+)
+
+type IndexSize uint8
+
+const (
+	Idx16 IndexSize = 16
+	Idx32 IndexSize = 32
+)
+
+type HasTexture uint8
+
+const (
+	NoTex  HasTexture = 0
+	HasTex HasTexture = 1
+	False             = NoTex
+	True              = HasTex
+)
+
+type ColorSpace uint8
+
+const (
+	Col6  ColorSpace = 6
+	Col8  ColorSpace = 8
+	Col12 ColorSpace = 12
+	Col16 ColorSpace = 16
+	Col24 ColorSpace = 24
+	Col32 ColorSpace = 32
+)
+
+type VertexProperties struct {
+	VertexSpace
+	IndexSize
+	ColorSpace
+	HasTexture HasTexture
 }
 
 type VertexMode uint8
@@ -76,6 +119,16 @@ type Shader struct {
 	Code  string
 	Data  []byte
 	File  string
+}
+
+type ShapeInstance struct {
+	BatchID         uint8
+	BatchIndexStart uint32
+	BatchIndexEnd   uint32
+}
+
+func (s ShapeInstance) Len() uint32 {
+	return s.BatchIndexEnd - s.BatchIndexStart
 }
 
 /**************
@@ -167,6 +220,7 @@ func (g GraphicsProvider) AddQuadOutline2D(batchID uint8, quadInner Quad2D, quad
 	do := g.AddVertexToBatch2D(batchID, quadOuter.D(), color, uvQuadOuter.D(), extra)
 	g.AddIndexesToBatch(batchID, ai, ao, bi, ao, bo, bi, bi, bo, ci, bo, co, ci, ci, co, di, co, do, di, di, do, ai, do, ao, ai)
 }
+
 func (g GraphicsProvider) AddRectOutline2D(batchID uint8, rect Rect2D, thickness float32, color Color32, uvRect Rect2D, uvThickness float32, extra uint32) {
 	innerQuad, uvInnerQuad := rect.Quad(), uvRect.Quad()
 	outerQuad := rect.Translate(Vec2{-thickness, -thickness}).Expand(Vec2{2 * thickness, 2 * thickness}).Quad()

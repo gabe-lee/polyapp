@@ -19,7 +19,9 @@ type Quad3D = vecs.F32Quad3
 type IQuad3D = vecs.I32Quad3
 type Line2D = vecs.F32Line2
 type Line3D = vecs.F32Line3
+
 type Color32 = color.U8x4Color
+type Color24 = color.U8x3Color
 
 type InputState uint8
 
