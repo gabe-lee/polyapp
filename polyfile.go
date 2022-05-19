@@ -8,7 +8,6 @@ type FileInterface interface {
 var _ FileInterface = (*FileProvider)(nil)
 
 type FileProvider struct {
-	App *App
 	FileInterface
 }
 

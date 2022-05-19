@@ -30,7 +30,6 @@ type GraphicsInterface interface {
 var _ GraphicsInterface = (*GraphicsProvider)(nil)
 
 type GraphicsProvider struct {
-	App *App
 	GraphicsInterface
 }
 

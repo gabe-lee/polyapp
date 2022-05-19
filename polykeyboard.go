@@ -9,7 +9,6 @@ type KeyboardInterface interface {
 var _ KeyboardInterface = (*KeyboardProvider)(nil)
 
 type KeyboardProvider struct {
-	App *App
 	KeyboardInterface
 }
 

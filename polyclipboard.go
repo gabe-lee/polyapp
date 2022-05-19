@@ -8,6 +8,5 @@ type ClipboardInterface interface {
 var _ ClipboardInterface = (*ClipboardProvider)(nil)
 
 type ClipboardProvider struct {
-	App *App
 	ClipboardInterface
 }

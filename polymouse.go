@@ -11,7 +11,6 @@ type MouseInterface interface {
 var _ MouseInterface = (*MouseProvider)(nil)
 
 type MouseProvider struct {
-	App *App
 	MouseInterface
 }
 
