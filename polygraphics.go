@@ -8,8 +8,8 @@ import (
 type GraphicsInterface interface {
 	GetWindowSize() Vec2
 
-	AddRenderer(shaders []*Shader) (rendererID uint8, err error)
-	AddDrawBatch(textureID uint8, initialSize uint32) (batchID uint8, err error)
+	AddRenderer(vertexSpace VertexSpace, shaders []*Shader) (rendererID uint8, err error)
+	AddDrawBatch(vertexSpace VertexSpace, textureID uint8, initialSize uint32) (batchID uint8, err error)
 	AddTexture(texture *Texture) (textureID uint8, err error)
 	AddDrawSurface(size IVec2) (surfaceID uint8, textureID uint8, err error)
 
