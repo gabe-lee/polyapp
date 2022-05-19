@@ -21,7 +21,7 @@ type GraphicsInterface interface {
 	AddVertexToBatch2D(batchID uint8, position Vec2, color Color32, textureUV Vec2, extra uint32) (vertIndex uint16)
 	AddVertexToBatch3D(batchID uint8, position Vec3, color Color32, textureUV Vec2, extra uint32) (vertIndex uint16)
 	UpdateVertexInBatch2D(batchID uint8, vertIndex uint16, position Vec2, color Color32, textureUV Vec2, extra uint32)
-	UpdateVertexInBatch3D(batchID uint8, vertIndex uint16, position Vec2, color Color32, textureUV Vec2, extra uint32)
+	UpdateVertexInBatch3D(batchID uint8, vertIndex uint16, position Vec3, color Color32, textureUV Vec2, extra uint32)
 	AddIndexesToBatch(batchID uint8, vertIndexes ...uint16) (indexSlice []uint16)
 	DeleteIndexesFromBatch(batchID uint8, indexSlice []uint16)
 	ClearBatch(batchID uint8)
