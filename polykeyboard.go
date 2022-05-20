@@ -3,7 +3,7 @@ package polyapp
 type KeyboardInterface interface {
 	GetKeyboardKeyState(key KeyboardKey) InputState
 	SetCallbackOnRuneInput(op func(r rune))
-	SetCallbackOnKeyPress(op func(key KeyboardKey, state InputState, mods KeyboardMod))
+	SetCallbackOnKeyPress(op func(key KeyboardKey, state InputAction, mods KeyboardMod))
 }
 
 var _ KeyboardInterface = (*KeyboardProvider)(nil)
