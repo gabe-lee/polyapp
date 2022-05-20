@@ -5,7 +5,7 @@ type MouseInterface interface {
 	GetMousePosition() Vec2
 	SetCallbackOnMouseWheelScroll(op func(offset Vec2))
 	SetCallbackOnMouseMove(op func(pos Vec2))
-	SetCallbackOnMouseButton(op func(button MouseButton, state InputState))
+	SetCallbackOnMouseButton(op func(button MouseButton, state InputAction))
 }
 
 var _ MouseInterface = (*MouseProvider)(nil)
