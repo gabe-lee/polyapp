@@ -15,10 +15,10 @@ type GraphicsInterface interface {
 	AddRenderer(vertexFlags VertexFlags, shaders []*Shader) (rendererID uint8, err error)
 	AddDrawBatch(vertexFlags VertexFlags, textureID uint8, initialSize uint32) (batchID uint8, err error)
 	AddTexture(texture *Texture) (textureID uint8, err error)
-	AddDrawSurface(size IVec2) (surfaceID uint8, textureID uint8, err error)
+	AddDrawSurface(size IVec2, mipMaps uint32) (surfaceID uint8, textureID uint8, err error)
 
-	ClearSurface(surfaceID uint8, baseColor Color32)
-	ClearSurfaceArea(surfaceID uint8, baseColor Color32, area IRect2D)
+	ClearSurface(surfaceID uint8, baseColor ColorFA)
+	ClearSurfaceArea(surfaceID uint8, baseColor ColorFA, area IRect2D)
 
 	DrawBatch(batchID uint8, surfaceID uint8, rendererID uint8)
 
