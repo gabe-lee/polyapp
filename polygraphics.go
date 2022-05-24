@@ -83,8 +83,8 @@ const (
 	Ex64      VertexFlags = 256  // 2 additional 32bit data blocks
 	Ex96      VertexFlags = 384  // 3 additional 32bit data blocks
 	Ex128     VertexFlags = 512  // 4 additional 32bit data blocks
-	Ex160     VertexFlags = 640  // 5 additional 32bit data blocks
-	Ex192     VertexFlags = 768  // 6 additional 32bit data blocks
+	Ex192     VertexFlags = 640  // 6 additional 32bit data blocks
+	Ex224     VertexFlags = 768  // 7 additional 32bit data blocks
 	Ex256     VertexFlags = 896  // 8 additional 32bit data blocks
 	ExMask    VertexFlags = 896  // Mask for checking number of extra data blocks
 	Tris      VertexFlags = 0    // Every 3 Vertices are an independant triangle
@@ -178,10 +178,10 @@ func (vf VertexFlags) ExSize() uint32 {
 	switch {
 	case vf&ExMask == Ex256:
 		return 32
+	case vf&ExMask == Ex224:
+		return 28
 	case vf&ExMask == Ex192:
 		return 24
-	case vf&ExMask == Ex160:
-		return 20
 	case vf&ExMask == Ex128:
 		return 16
 	case vf&ExMask == Ex96:
