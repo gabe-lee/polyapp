@@ -247,8 +247,8 @@ type BatchSlice struct {
 }
 
 type BatchShape struct {
-	vertCount uint32
-	indexes   []uint32
+	VertCount uint32
+	Indexes   []uint32
 }
 
 func (b BatchSlice) IdxLen() uint32 {
@@ -267,8 +267,8 @@ func (g GraphicsProvider) AddLine2D(batchID uint8, a Vertex, b Vertex, thickness
 	dErr := utils.NewDeepError("[PolyApp] AddLine2D():")
 	dErr.IsErr = false
 	bSlice, err := g.AllocateShapeInBatch(batchID, BatchShape{
-		vertCount: 4,
-		indexes:   []uint32{0, 1, 2, 0, 3, 2},
+		VertCount: 4,
+		Indexes:   []uint32{0, 1, 2, 0, 3, 2},
 	})
 	if err.IsErr {
 		dErr.AddChildDeepError(err)
@@ -313,8 +313,8 @@ func (g GraphicsProvider) AddTriangle2D(batchID uint8, a Vertex, b Vertex, c Ver
 	dErr := utils.NewDeepError("[PolyApp] AddTriangle2D():")
 	dErr.IsErr = false
 	bSlice, err := g.AllocateShapeInBatch(batchID, BatchShape{
-		vertCount: 3,
-		indexes:   []uint32{0, 1, 2},
+		VertCount: 3,
+		Indexes:   []uint32{0, 1, 2},
 	})
 	if err.IsErr {
 		dErr.AddChildDeepError(err)
@@ -357,8 +357,8 @@ func (g GraphicsProvider) AddRegularPolygon2D(batchID uint8, center Vertex, side
 	}
 	idx[iCount-1] = 1
 	bSlice, err := g.AllocateShapeInBatch(batchID, BatchShape{
-		vertCount: vCount,
-		indexes:   idx,
+		VertCount: vCount,
+		Indexes:   idx,
 	})
 	if err.IsErr {
 		dErr.AddChildDeepError(err)
@@ -404,8 +404,8 @@ func (g GraphicsProvider) AddRegularPolygonRing2D(batchID uint8, center Vertex, 
 	idx[iCount-2] = 1
 	idx[iCount-1] = 0
 	bSlice, err := g.AllocateShapeInBatch(batchID, BatchShape{
-		vertCount: vCount,
-		indexes:   idx,
+		VertCount: vCount,
+		Indexes:   idx,
 	})
 	if err.IsErr {
 		dErr.AddChildDeepError(err)
@@ -475,8 +475,8 @@ func (g GraphicsProvider) AddQuad2D(batchID uint8, quad Quad2D, color ColorFA, u
 	dErr := utils.NewDeepError("[PolyApp] AddQuad2D():")
 	dErr.IsErr = false
 	bSlice, err := g.AllocateShapeInBatch(batchID, BatchShape{
-		vertCount: 4,
-		indexes:   []uint32{0, 1, 2, 2, 3, 0},
+		VertCount: 4,
+		Indexes:   []uint32{0, 1, 2, 2, 3, 0},
 	})
 	if err.IsErr {
 		dErr.AddChildDeepError(err)
@@ -529,8 +529,8 @@ func (g GraphicsProvider) AddQuadOutline2D(batchID uint8, quadInner Quad2D, quad
 	dErr := utils.NewDeepError("[PolyApp] AddQuadOutline2D():")
 	dErr.IsErr = false
 	bSlice, err := g.AllocateShapeInBatch(batchID, BatchShape{
-		vertCount: 8,
-		indexes:   []uint32{0, 1, 2, 1, 3, 2, 2, 3, 4, 3, 5, 4, 4, 5, 6, 5, 7, 6, 6, 7, 0, 7, 1, 0},
+		VertCount: 8,
+		Indexes:   []uint32{0, 1, 2, 1, 3, 2, 2, 3, 4, 3, 5, 4, 4, 5, 6, 5, 7, 6, 6, 7, 0, 7, 1, 0},
 	})
 	if err.IsErr {
 		dErr.AddChildDeepError(err)
