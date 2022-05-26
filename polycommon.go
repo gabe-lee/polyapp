@@ -2,11 +2,14 @@ package polyapp
 
 import (
 	color "github.com/gabe-lee/color"
+	utils "github.com/gabe-lee/genutils"
 	vecs "github.com/gabe-lee/genvecs"
 )
 
 var ZeroVec3 = Vec3{0, 0, 0}
 var ZeroVec2 = Vec2{0, 0}
+
+type DeepError = utils.DeepError
 
 type Vec2 = vecs.F32Vec2
 type IVec2 = vecs.I32Vec2

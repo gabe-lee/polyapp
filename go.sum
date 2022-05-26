@@ -4,5 +4,7 @@ github.com/gabe-lee/gengeom v0.1.2 h1:lwEJ76WTKK73pX1fzxKabZnuFwddR8uDCyipd6ONYI
 github.com/gabe-lee/gengeom v0.1.2/go.mod h1:2mt5GC2VWh8wYHaVrjdO/ixG3n3i3c7IkVfEsqruORo=
 github.com/gabe-lee/genmath v1.3.2 h1:4r9o1vCMr0D/yw0HtUBnzi68TkwtFJKWOGTwjfnsIj8=
 github.com/gabe-lee/genmath v1.3.2/go.mod h1:bT45kaN5bu3kZW562244x7ze+Ha8iGAAepHZTIS4zgQ=
+github.com/gabe-lee/genutils v1.0.4 h1:bHx81OwK2u1x3GNffuVRDyc4ALa7Wzi4K8Vlmm97exU=
+github.com/gabe-lee/genutils v1.0.4/go.mod h1:9ZaCdYkI+akoPLHIZuYGYf8ZA5L54XcXPvaIo9oWm3I=
 github.com/gabe-lee/genvecs v0.4.2 h1:40Uzn78f3c3MwBRR0L51/xJ5HB1pV+xiTsrSspAY9Yw=
 github.com/gabe-lee/genvecs v0.4.2/go.mod h1:01fiZT2aCeXD2ZbR2W/5HiT5875Tw5C3CsMVrv65A6Q=

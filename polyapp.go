@@ -3,6 +3,7 @@ package polyapp
 type App struct {
 	Init       func(options any)
 	Teardown   func()
+	Window     WindowProvider
 	Graphics   GraphicsProvider
 	Keyboard   KeyboardProvider
 	Mouse      MouseProvider

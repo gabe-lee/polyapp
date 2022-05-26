@@ -1,33 +1,28 @@
 package polyapp
 
 import (
-	"errors"
-
 	geom "github.com/gabe-lee/gengeom"
 	math "github.com/gabe-lee/genmath"
+	utils "github.com/gabe-lee/genutils"
 )
 
 type GraphicsInterface interface {
-	GetWindowSize() Vec2
-
 	XRightYUpZAway() Vec3
 
-	AddRenderer(vertexFlags VertexFlags, shaders []*Shader) (rendererID uint8, err error)
-	AddDrawBatch(vertexFlags VertexFlags, textureID uint8, initialSize uint32) (batchID uint8, err error)
-	AddTexture(texture *Texture) (textureID uint8, err error)
-	AddDrawSurface(size IVec2, mipMaps uint32) (surfaceID uint8, textureID uint8, err error)
+	AddRenderer(vertexFlags VertexFlags, shaders []*Shader) (rendererID uint8, err DeepError)
+	AddDrawBatch(vertexFlags VertexFlags, textureID uint8, initialSize uint32) (batchID uint8, err DeepError)
+	AddTexture(texture *Texture) (textureID uint8, err DeepError)
+	AddDrawSurface(size IVec2, mipMaps uint32) (surfaceID uint8, textureID uint8, err DeepError)
 
-	ClearSurface(surfaceID uint8, baseColor ColorFA)
-	ClearSurfaceArea(surfaceID uint8, baseColor ColorFA, area IRect2D)
+	ClearSurface(surfaceID uint8, baseColor ColorFA) DeepError
+	ClearSurfaceArea(surfaceID uint8, baseColor ColorFA, area IRect2D) DeepError
 
-	DrawBatch(batchID uint8, surfaceID uint8, rendererID uint8)
+	AllocateShapeInBatch(batchID uint8, shape BatchShape) (BatchSlice, DeepError)
+	UpdateVertexInBatch(batchID uint8, vertIndex uint32, vertex Vertex) DeepError
+	DeleteShapeFromBatch(batchSlice BatchSlice) DeepError
 
-	AddVertexToBatch(batchID uint8, vertex Vertex) (vertIndex uint32)
-	UpdateVertexInBatch(batchID uint8, vertIndex uint32, vertex Vertex)
-	AddIndexesToBatch(batchID uint8, vertIndexes ...uint32) (indexSlice BatchSlice)
-	DeleteIndexesFromBatch(indexSlice BatchSlice)
-	DeleteVerticesFromBatch(batchSlice BatchSlice)
-	ClearBatch(batchID uint8)
+	DrawBatch(batchID uint8, surfaceID uint8, rendererID uint8) DeepError
+	ClearBatch(batchID uint8) DeepError
 }
 
 var _ GraphicsInterface = (*GraphicsProvider)(nil)
@@ -162,6 +157,8 @@ func (vf VertexFlags) ColorSize() uint32 {
 		return 6
 	case vf&ColMask == Col32:
 		return 4
+	case vf&ColMask == Col24:
+		return 3
 	case vf&ColMask == Col16:
 		return 2
 	case vf&ColMask == Col8:
@@ -228,7 +225,7 @@ type Texture struct {
 	Data    []byte
 	File    string
 	ImgType ImageType
-	Size    Vec2
+	Size    IVec2
 	MipMaps uint32
 	ID      uint32
 	TexUnit uint32
@@ -249,6 +246,11 @@ type BatchSlice struct {
 	VertexEnd   uint32
 }
 
+type BatchShape struct {
+	vertCount uint32
+	indexes   []uint32
+}
+
 func (b BatchSlice) IdxLen() uint32 {
 	return b.IndexEnd - b.IndexStart
 }
@@ -257,59 +259,31 @@ func (b BatchSlice) VertLen() uint32 {
 	return b.VertexEnd - b.VertexStart
 }
 
-func (b BatchSlice) Combine(other BatchSlice) (BatchSlice, error) {
-	if b.BatchID != other.BatchID || // Must be on same batch
-		!(b.IndexEnd == other.IndexStart || b.IndexStart == other.IndexEnd) || // one of the index starts must match one of the index ends
-		!(b.VertexStart == other.VertexEnd || b.VertexEnd == other.IndexStart) { // one of the vertex starts must match one of the vertex ends
-		return b, errors.New("[PolyApp] Cannot combine batch slices that aren't adjacent and on the same batch")
-	}
-	if b.IndexEnd == other.IndexStart {
-		b.IndexEnd = other.IndexEnd
-	} else {
-		b.IndexStart = other.IndexStart
-	}
-	if b.VertexEnd == other.VertexStart {
-		b.VertexEnd = other.VertexEnd
-	} else {
-		b.VertexStart = other.VertexStart
-	}
-	return b, nil
-}
-
 /**************
 	LINES
 ***************/
 
-func (g GraphicsProvider) AddLine2D(batchID uint8, a Vertex, b Vertex, thickness float32, uvThickness float32) (batchSlice BatchSlice) {
-	l := Line2D{a.Pos.AsVec2(), b.Pos.AsVec2()}
-	u := Line2D{a.UV, b.UV}
-	a.Norm = Vec3{0, 0, -g.XRightYUpZAway()[2]}
-	b.Norm = a.Norm
-	l1, l2 := l.PerpLines(thickness / 2)
-	u1, u2 := u.PerpLines(uvThickness / 2)
-	a.Pos = l1.A().AsVec3()
-	a.UV = u1.A()
-	a1 := g.AddVertexToBatch(batchID, a)
-	a.Pos = l2.A().AsVec3()
-	a.UV = u2.A()
-	a2 := g.AddVertexToBatch(batchID, a)
-	b.Pos = l1.B().AsVec3()
-	b.UV = u1.B()
-	b1 := g.AddVertexToBatch(batchID, b)
-	b.Pos = l2.B().AsVec3()
-	b.UV = u2.B()
-	b2 := g.AddVertexToBatch(batchID, b)
-	batchSlice = g.AddIndexesToBatch(batchID, a1, a2, b1, a1, b2, b1)
-	batchSlice.BatchID = batchID
-	batchSlice.VertexStart = a1
-	batchSlice.VertexEnd = b2 + 1
-	return batchSlice
+func (g GraphicsProvider) AddLine2D(batchID uint8, a Vertex, b Vertex, thickness float32, uvThickness float32) (batchSlice BatchSlice, err DeepError) {
+	dErr := utils.NewDeepError("[PolyApp] AddLine2D():")
+	dErr.IsErr = false
+	bSlice, err := g.AllocateShapeInBatch(batchID, BatchShape{
+		vertCount: 4,
+		indexes:   []uint32{0, 1, 2, 0, 3, 2},
+	})
+	if err.IsErr {
+		dErr.AddChildDeepError(err)
+		return bSlice, err
+	}
+	dErr.AddChildDeepError(g.UpdateLine2D(bSlice, a, b, thickness, uvThickness))
+	return batchSlice, dErr
 }
 
-func (g GraphicsProvider) UpdateLine2D(batchSlice BatchSlice, a Vertex, b Vertex, thickness float32, uvThickness float32) error {
+func (g GraphicsProvider) UpdateLine2D(batchSlice BatchSlice, a Vertex, b Vertex, thickness float32, uvThickness float32) DeepError {
 	if batchSlice.IdxLen() != 6 || batchSlice.VertLen() != 4 {
-		return errors.New("[PolyApp] UpdateLine2D(): batch slice provided does not have required dimensions for a line")
+		return utils.NewDeepError("[PolyApp] UpdateLine2D(): batch slice provided does not have required dimensions for a line")
 	}
+	dErr := utils.NewDeepError("[PolyApp] UpdateLine2D():")
+	dErr.IsErr = false
 	a.Norm = Vec3{0, 0, -g.XRightYUpZAway()[2]}
 	b.Norm = a.Norm
 	l := Line2D{a.Pos.AsVec2(), b.Pos.AsVec2()}
@@ -318,152 +292,205 @@ func (g GraphicsProvider) UpdateLine2D(batchSlice BatchSlice, a Vertex, b Vertex
 	u1, u2 := u.PerpLines(uvThickness / 2)
 	a.Pos = l1.A().AsVec3()
 	a.UV = u1.A()
-	g.UpdateVertexInBatch(batchSlice.BatchID, batchSlice.VertexStart, a)
+	dErr.AddChildDeepError(g.UpdateVertexInBatch(batchSlice.BatchID, batchSlice.VertexStart, a))
 	a.Pos = l2.A().AsVec3()
 	a.UV = u2.A()
-	g.UpdateVertexInBatch(batchSlice.BatchID, batchSlice.VertexStart+1, a)
+	dErr.AddChildDeepError(g.UpdateVertexInBatch(batchSlice.BatchID, batchSlice.VertexStart+1, a))
 	b.Pos = l1.B().AsVec3()
 	b.UV = u1.B()
-	g.UpdateVertexInBatch(batchSlice.BatchID, batchSlice.VertexStart+2, a)
+	dErr.AddChildDeepError(g.UpdateVertexInBatch(batchSlice.BatchID, batchSlice.VertexStart+2, a))
 	b.Pos = l2.B().AsVec3()
 	b.UV = u2.B()
-	g.UpdateVertexInBatch(batchSlice.BatchID, batchSlice.VertexStart+3, a)
-	return nil
+	dErr.AddChildDeepError(g.UpdateVertexInBatch(batchSlice.BatchID, batchSlice.VertexStart+3, a))
+	return dErr
+}
+
+/**************
+	TRIANGLES
+***************/
+
+func (g GraphicsProvider) AddTriangle2D(batchID uint8, a Vertex, b Vertex, c Vertex) (BatchSlice, DeepError) {
+	dErr := utils.NewDeepError("[PolyApp] AddTriangle2D():")
+	dErr.IsErr = false
+	bSlice, err := g.AllocateShapeInBatch(batchID, BatchShape{
+		vertCount: 3,
+		indexes:   []uint32{0, 1, 2},
+	})
+	if err.IsErr {
+		dErr.AddChildDeepError(err)
+		return bSlice, dErr
+	}
+	a.Norm = Vec3{0, 0, -g.XRightYUpZAway()[2]}
+	b.Norm = Vec3{0, 0, -g.XRightYUpZAway()[2]}
+	c.Norm = Vec3{0, 0, -g.XRightYUpZAway()[2]}
+	err.AddChildDeepError(g.UpdateTriangle2D(bSlice, a, b, c))
+	return bSlice, err
+}
+
+func (g GraphicsProvider) UpdateTriangle2D(batchSlice BatchSlice, a Vertex, b Vertex, c Vertex) DeepError {
+	if batchSlice.VertLen() != 3 || batchSlice.IdxLen() != 3 {
+		return utils.NewDeepError("[PolyApp] UpdateTriangle2D(): batch slice provided does not have required dimensions for a triangle")
+	}
+	dErr := utils.NewDeepError("[PolyApp] UpdateTriangle2D():")
+	dErr.IsErr = false
+	dErr.AddChildDeepError(g.UpdateVertexInBatch(batchSlice.BatchID, batchSlice.VertexStart, a))
+	dErr.AddChildDeepError(g.UpdateVertexInBatch(batchSlice.BatchID, batchSlice.VertexStart+1, b))
+	dErr.AddChildDeepError(g.UpdateVertexInBatch(batchSlice.BatchID, batchSlice.VertexStart+2, c))
+	return dErr
 }
 
 /**************
 	POLYGONS
 ***************/
 
-func (g GraphicsProvider) AddRegularPolygon2D(batchID uint8, center Vertex, sides uint32, radius float32, shapeRotation float32, uvRadius float32, uvRotation float32) BatchSlice {
-	indexes := make([]uint32, sides)
-	batchSlice := BatchSlice{}
-	center.Norm = Vec3{0, 0, -g.XRightYUpZAway()[2]}
-	points := geom.PointsOnCircle(shapeRotation*math.DEG_TO_RAD, radius, center.Pos.AsVec2(), sides)
-	uvs := geom.PointsOnCircle(uvRotation*math.DEG_TO_RAD, uvRadius, center.UV, sides)
-	cenIdx := g.AddVertexToBatch(batchID, center)
-	for i := range points {
-		center.Pos = points[i].AsVec3()
-		center.UV = uvs[i]
-		indexes[i] = g.AddVertexToBatch(batchID, center)
-		if i > 0 {
-			batchSlice, _ = batchSlice.Combine(g.AddIndexesToBatch(batchID, cenIdx, indexes[i-1], indexes[i]))
-		}
+func (g GraphicsProvider) AddRegularPolygon2D(batchID uint8, center Vertex, sides uint32, radius float32, shapeRotation float32, uvRadius float32, uvRotation float32) (BatchSlice, DeepError) {
+	dErr := utils.NewDeepError("[PolyApp] AddRegularPolygon2D():")
+	dErr.IsErr = false
+	iCount := 3 * sides
+	vCount := sides + 1
+	idx := make([]uint32, iCount)
+	_ = idx[iCount-1]
+	for i, v := uint32(0), uint32(1); i < iCount; i, v = i+3, v+1 {
+		idx[i] = 0
+		idx[i+1] = v
+		idx[i+2] = v + 1
 	}
-	batchSlice, _ = batchSlice.Combine(g.AddIndexesToBatch(batchID, cenIdx, indexes[len(indexes)-1], indexes[0]))
-	batchSlice.BatchID = batchID
-	batchSlice.VertexStart = cenIdx
-	batchSlice.VertexEnd = indexes[len(indexes)-1] + 1
-	return batchSlice
+	idx[iCount-1] = 1
+	bSlice, err := g.AllocateShapeInBatch(batchID, BatchShape{
+		vertCount: vCount,
+		indexes:   idx,
+	})
+	if err.IsErr {
+		dErr.AddChildDeepError(err)
+		return bSlice, dErr
+	}
+	dErr.AddChildDeepError(g.UpdateRegularPolygon2D(bSlice, center, sides, radius, shapeRotation, uvRadius, uvRotation))
+	return bSlice, dErr
 }
 
-func (g GraphicsProvider) UpdateRegularPolygon2D(batchSlice BatchSlice, center Vertex, sides uint32, radius float32, shapeRotation float32, uvRadius float32, uvRotation float32) error {
+func (g GraphicsProvider) UpdateRegularPolygon2D(batchSlice BatchSlice, center Vertex, sides uint32, radius float32, shapeRotation float32, uvRadius float32, uvRotation float32) DeepError {
 	if batchSlice.VertLen() != sides+1 || batchSlice.IdxLen() != sides*3 {
-		return errors.New("[PolyApp] UpdateRegularPolygon2D(): batch slice provided does not have required dimensions for a polygon of specified sides")
+		return utils.NewDeepError("[PolyApp] UpdateRegularPolygon2D(): batch slice provided does not have required dimensions for a polygon of specified sides")
 	}
+	dErr := utils.NewDeepError("[PolyApp] UpdateRegularPolygon2D():")
+	dErr.IsErr = false
 	center.Norm = Vec3{0, 0, -g.XRightYUpZAway()[2]}
 	points := geom.PointsOnCircle(shapeRotation*math.DEG_TO_RAD, radius, center.Pos.AsVec2(), sides)
 	uvs := geom.PointsOnCircle(uvRotation*math.DEG_TO_RAD, uvRadius, center.UV, sides)
-	g.UpdateVertexInBatch(batchSlice.BatchID, batchSlice.VertexStart, center)
+	dErr.AddChildDeepError(g.UpdateVertexInBatch(batchSlice.BatchID, batchSlice.VertexStart, center))
 	for i := uint32(0); i < uint32(len(points)); i += 1 {
 		center.Pos = points[i].AsVec3()
 		center.UV = uvs[i]
-		g.UpdateVertexInBatch(batchSlice.BatchID, batchSlice.VertexStart+i+1, center)
+		dErr.AddChildDeepError(g.UpdateVertexInBatch(batchSlice.BatchID, batchSlice.VertexStart+i+1, center))
 	}
-	return nil
+	return dErr
 }
 
-func (g GraphicsProvider) AddRegularPolygonRing2D(batchID uint8, center Vertex, sides uint32, innerRadius float32, outerRadius float32, shapeRotation float32, uvInnerRadius float32, uvOuterRadius float32, uvRotation float32) BatchSlice {
-	sides = math.Round(sides)
-	indexes := make([]uint32, sides*2)
-	batchSlice := BatchSlice{}
-	center.Norm = Vec3{0, 0, -g.XRightYUpZAway()[2]}
-	uvs := geom.PointsOnRing(uvRotation*math.DEG_TO_RAD, uvInnerRadius, uvOuterRadius, center.UV, sides)
-	points := geom.PointsOnRing(shapeRotation*math.DEG_TO_RAD, innerRadius, outerRadius, center.Pos.AsVec2(), sides)
-	for i := range points {
-		center.Pos = points[i].AsVec3()
-		center.UV = uvs[i]
-		indexes[i] = g.AddVertexToBatch(batchID, center)
+func (g GraphicsProvider) AddRegularPolygonRing2D(batchID uint8, center Vertex, sides uint32, innerRadius float32, outerRadius float32, shapeRotation float32, uvInnerRadius float32, uvOuterRadius float32, uvRotation float32) (BatchSlice, DeepError) {
+	dErr := utils.NewDeepError("[PolyApp] AddRegularPolygonRing2D():")
+	dErr.IsErr = false
+	iCount := 6 * sides
+	vCount := 2 * sides
+	idx := make([]uint32, iCount)
+	_ = idx[iCount-1]
+	for i, v := uint32(0), uint32(0); i < iCount; i, v = i+6, v+2 {
+		idx[i] = v
+		idx[i+1] = v + 1
+		idx[i+2] = v + 2
+		idx[i+3] = v
+		idx[i+4] = v + 3
+		idx[i+5] = v + 2
 	}
-	for i := 0; i <= len(indexes)-4; i += 2 {
-		batchSlice, _ = batchSlice.Combine(g.AddIndexesToBatch(batchID, indexes[i+0], indexes[i+1], indexes[i+2], indexes[i+1], indexes[i+3], indexes[i+2]))
+	idx[iCount-2] = 1
+	idx[iCount-1] = 0
+	bSlice, err := g.AllocateShapeInBatch(batchID, BatchShape{
+		vertCount: vCount,
+		indexes:   idx,
+	})
+	if err.IsErr {
+		dErr.AddChildDeepError(err)
+		return bSlice, err
 	}
-	batchSlice, _ = batchSlice.Combine(g.AddIndexesToBatch(batchID, indexes[len(indexes)-2], indexes[len(indexes)-1], indexes[0], indexes[len(indexes)-1], indexes[1], indexes[0]))
-	batchSlice.BatchID = batchID
-	batchSlice.VertexStart = indexes[0]
-	batchSlice.VertexEnd = indexes[len(indexes)-1] + 1
-	return batchSlice
+	dErr.AddChildDeepError(g.UpdateRegularPolygonRing2D(bSlice, center, sides, innerRadius, outerRadius, shapeRotation, uvInnerRadius, uvOuterRadius, uvRotation))
+	return bSlice, err
 }
 
-func (g GraphicsProvider) UpdateRegularPolygonRing2D(batchSlice BatchSlice, center Vertex, sides uint32, innerRadius float32, outerRadius float32, shapeRotation float32, uvInnerRadius float32, uvOuterRadius float32, uvRotation float32) error {
+func (g GraphicsProvider) UpdateRegularPolygonRing2D(batchSlice BatchSlice, center Vertex, sides uint32, innerRadius float32, outerRadius float32, shapeRotation float32, uvInnerRadius float32, uvOuterRadius float32, uvRotation float32) DeepError {
 	if batchSlice.VertLen() != sides*2 || batchSlice.IdxLen() != sides*6 {
-		return errors.New("[PolyApp] UpdateRegularPolygonRing2D(): batch slice provided does not have required dimensions for a polygon of specified sides")
+		return utils.NewDeepError("[PolyApp] UpdateRegularPolygonRing2D(): batch slice provided does not have required dimensions for a polygon of specified sides")
 	}
+	dErr := utils.NewDeepError("[PolyApp] UpdateRegularPolygonRing2D():")
+	dErr.IsErr = false
 	center.Norm = Vec3{0, 0, -g.XRightYUpZAway()[2]}
 	uvs := geom.PointsOnRing(uvRotation*math.DEG_TO_RAD, uvInnerRadius, uvOuterRadius, center.UV, sides)
 	points := geom.PointsOnRing(shapeRotation*math.DEG_TO_RAD, innerRadius, outerRadius, center.Pos.AsVec2(), sides)
 	for i := uint32(0); i < uint32(len(points)); i += 1 {
 		center.Pos = points[i].AsVec3()
 		center.UV = uvs[i]
-		g.UpdateVertexInBatch(batchSlice.BatchID, batchSlice.VertexStart+i, center)
+		dErr.AddChildDeepError(g.UpdateVertexInBatch(batchSlice.BatchID, batchSlice.VertexStart+i, center))
 	}
-	return nil
+	return dErr
 }
 
 /**************
 	CIRCLES
 ***************/
 
-func (g GraphicsProvider) AddCircleAutoPoints2D(batchID uint8, center Vertex, resolution float32, radius float32, uvRadius float32, uvRotation float32) BatchSlice {
+func (g GraphicsProvider) AddCircleAutoPoints2D(batchID uint8, center Vertex, resolution float32, radius float32, uvRadius float32, uvRotation float32) (BatchSlice, DeepError) {
+	dErr := utils.NewDeepError("[PolyApp] AddCircleAutoPoints2D():")
+	dErr.IsErr = false
 	sides := uint32(math.Ciel(geom.Circumference(radius) / resolution))
-	return g.AddRegularPolygon2D(batchID, center, sides, radius, 0, uvRadius, uvRotation)
+	bs, err := g.AddRegularPolygon2D(batchID, center, sides, radius, 0, uvRadius, uvRotation)
+	dErr.AddChildDeepError(err)
+	return bs, dErr
 }
-func (g GraphicsProvider) UpdateCircleAutoPoints2D(batchSlice BatchSlice, center Vertex, resolution float32, radius float32, uvRadius float32, uvRotation float32) error {
+func (g GraphicsProvider) UpdateCircleAutoPoints2D(batchSlice BatchSlice, center Vertex, resolution float32, radius float32, uvRadius float32, uvRotation float32) DeepError {
+	dErr := utils.NewDeepError("[PolyApp] UpdateCircleAutoPoints2D():")
+	dErr.IsErr = false
 	sides := uint32(math.Ciel(geom.Circumference(radius) / resolution))
-	return g.UpdateRegularPolygon2D(batchSlice, center, sides, radius, 0, uvRadius, uvRotation)
+	dErr.AddChildDeepError(g.UpdateRegularPolygon2D(batchSlice, center, sides, radius, 0, uvRadius, uvRotation))
+	return dErr
 }
-func (g GraphicsProvider) AddCircleRingAutoPoints2D(batchID uint8, center Vertex, resolution float32, innerRadius float32, outerRadius float32, uvInnerRadius float32, uvOuterRadius float32, uvRotation float32) BatchSlice {
+func (g GraphicsProvider) AddCircleRingAutoPoints2D(batchID uint8, center Vertex, resolution float32, innerRadius float32, outerRadius float32, uvInnerRadius float32, uvOuterRadius float32, uvRotation float32) (BatchSlice, DeepError) {
+	dErr := utils.NewDeepError("[PolyApp] AddCircleRingAutoPoints2D():")
+	dErr.IsErr = false
 	sides := uint32(math.Ciel(geom.Circumference(outerRadius) / resolution))
-	return g.AddRegularPolygonRing2D(batchID, center, sides, innerRadius, outerRadius, 0, uvInnerRadius, uvOuterRadius, uvRotation)
+	bs, err := g.AddRegularPolygonRing2D(batchID, center, sides, innerRadius, outerRadius, 0, uvInnerRadius, uvOuterRadius, uvRotation)
+	dErr.AddChildDeepError(err)
+	return bs, dErr
 }
-func (g GraphicsProvider) UpdateCircleRingAutoPoints2D(batchSlice BatchSlice, center Vertex, resolution float32, innerRadius float32, outerRadius float32, uvInnerRadius float32, uvOuterRadius float32, uvRotation float32) error {
+func (g GraphicsProvider) UpdateCircleRingAutoPoints2D(batchSlice BatchSlice, center Vertex, resolution float32, innerRadius float32, outerRadius float32, uvInnerRadius float32, uvOuterRadius float32, uvRotation float32) DeepError {
+	dErr := utils.NewDeepError("[PolyApp] UpdateCircleRingAutoPoints2D():")
+	dErr.IsErr = false
 	sides := uint32(math.Ciel(geom.Circumference(outerRadius) / resolution))
-	return g.UpdateRegularPolygonRing2D(batchSlice, center, sides, innerRadius, outerRadius, 0, uvInnerRadius, uvOuterRadius, uvRotation)
+	dErr.AddChildDeepError(g.UpdateRegularPolygonRing2D(batchSlice, center, sides, innerRadius, outerRadius, 0, uvInnerRadius, uvOuterRadius, uvRotation))
+	return dErr
 }
 
 /**************
 	RECTANGLES
 ***************/
 
-func (g GraphicsProvider) AddQuad2D(batchID uint8, quad Quad2D, color ColorFA, uvQuad Quad2D, extra VertExtra) BatchSlice {
-	v := Vertex{
-		Pos:   quad.A().AsVec3(),
-		Norm:  Vec3{0, 0, g.XRightYUpZAway()[2]},
-		UV:    uvQuad.A(),
-		Color: color,
-		Extra: extra,
+func (g GraphicsProvider) AddQuad2D(batchID uint8, quad Quad2D, color ColorFA, uvQuad Quad2D, extra VertExtra) (BatchSlice, DeepError) {
+	dErr := utils.NewDeepError("[PolyApp] AddQuad2D():")
+	dErr.IsErr = false
+	bSlice, err := g.AllocateShapeInBatch(batchID, BatchShape{
+		vertCount: 4,
+		indexes:   []uint32{0, 1, 2, 2, 3, 0},
+	})
+	if err.IsErr {
+		dErr.AddChildDeepError(err)
+		return bSlice, dErr
 	}
-	a := g.AddVertexToBatch(batchID, v)
-	v.Pos = quad.B().AsVec3()
-	v.UV = uvQuad.B()
-	b := g.AddVertexToBatch(batchID, v)
-	v.Pos = quad.C().AsVec3()
-	v.UV = uvQuad.C()
-	c := g.AddVertexToBatch(batchID, v)
-	v.Pos = quad.D().AsVec3()
-	v.UV = uvQuad.D()
-	d := g.AddVertexToBatch(batchID, v)
-	batchSlice := g.AddIndexesToBatch(batchID, a, b, c)
-	batchSlice, _ = batchSlice.Combine(g.AddIndexesToBatch(batchID, c, d, a))
-	batchSlice.BatchID = batchID
-	batchSlice.VertexStart = a
-	batchSlice.VertexEnd = d + 1
-	return batchSlice
+	dErr.AddChildDeepError(g.UpdateQuad2D(bSlice, quad, color, uvQuad, extra))
+	return bSlice, dErr
 }
-func (g GraphicsProvider) UpdateQuad2D(batchSlice BatchSlice, quad Quad2D, color ColorFA, uvQuad Quad2D, extra VertExtra) error {
+func (g GraphicsProvider) UpdateQuad2D(batchSlice BatchSlice, quad Quad2D, color ColorFA, uvQuad Quad2D, extra VertExtra) DeepError {
 	if batchSlice.VertLen() != 4 || batchSlice.IdxLen() != 6 {
-		return errors.New("[PolyApp] UpdateQuad2D(): batch slice provided does not have required dimensions for a quad")
+		return utils.NewDeepError("[PolyApp] UpdateQuad2D(): batch slice provided does not have required dimensions for a quad")
 	}
+	dErr := utils.NewDeepError("[PolyApp] UpdateQuad2D():")
+	dErr.IsErr = false
 	v := Vertex{
 		Pos:   quad.A().AsVec3(),
 		Norm:  Vec3{0, 0, -g.XRightYUpZAway()[2]},
@@ -471,66 +498,53 @@ func (g GraphicsProvider) UpdateQuad2D(batchSlice BatchSlice, quad Quad2D, color
 		Color: color,
 		Extra: extra,
 	}
-	g.UpdateVertexInBatch(batchSlice.BatchID, batchSlice.VertexStart, v)
+	dErr.AddChildDeepError(g.UpdateVertexInBatch(batchSlice.BatchID, batchSlice.VertexStart, v))
 	v.Pos = quad.B().AsVec3()
 	v.UV = uvQuad.B()
-	g.UpdateVertexInBatch(batchSlice.BatchID, batchSlice.VertexStart+1, v)
+	dErr.AddChildDeepError(g.UpdateVertexInBatch(batchSlice.BatchID, batchSlice.VertexStart+1, v))
 	v.Pos = quad.C().AsVec3()
 	v.UV = uvQuad.C()
-	g.UpdateVertexInBatch(batchSlice.BatchID, batchSlice.VertexStart+2, v)
+	dErr.AddChildDeepError(g.UpdateVertexInBatch(batchSlice.BatchID, batchSlice.VertexStart+2, v))
 	v.Pos = quad.D().AsVec3()
 	v.UV = uvQuad.D()
-	g.UpdateVertexInBatch(batchSlice.BatchID, batchSlice.VertexStart+3, v)
-	return nil
+	dErr.AddChildDeepError(g.UpdateVertexInBatch(batchSlice.BatchID, batchSlice.VertexStart+3, v))
+	return dErr
 }
-func (g GraphicsProvider) AddRect2D(batchID uint8, rect Rect2D, color ColorFA, uvRect Rect2D, extra VertExtra) BatchSlice {
+func (g GraphicsProvider) AddRect2D(batchID uint8, rect Rect2D, color ColorFA, uvRect Rect2D, extra VertExtra) (BatchSlice, DeepError) {
+	dErr := utils.NewDeepError("[PolyApp] AddRect2D():")
+	dErr.IsErr = false
 	quad, uvQuad := rect.Quad(), uvRect.Quad()
-	return g.AddQuad2D(batchID, quad, color, uvQuad, extra)
+	bs, err := g.AddQuad2D(batchID, quad, color, uvQuad, extra)
+	dErr.AddChildDeepError(err)
+	return bs, dErr
 }
-func (g GraphicsProvider) UpdateRect2D(batchSlice BatchSlice, rect Rect2D, color ColorFA, uvRect Rect2D, extra VertExtra) error {
+func (g GraphicsProvider) UpdateRect2D(batchSlice BatchSlice, rect Rect2D, color ColorFA, uvRect Rect2D, extra VertExtra) DeepError {
+	dErr := utils.NewDeepError("[PolyApp] UpdateRect2D():")
+	dErr.IsErr = false
 	quad, uvQuad := rect.Quad(), uvRect.Quad()
-	return g.UpdateQuad2D(batchSlice, quad, color, uvQuad, extra)
+	dErr.AddChildDeepError(g.UpdateQuad2D(batchSlice, quad, color, uvQuad, extra))
+	return dErr
 }
-func (g GraphicsProvider) AddQuadOutline2D(batchID uint8, quadInner Quad2D, quadOuter Quad2D, color ColorFA, uvQuadInner Quad2D, uvQuadOuter Quad2D, extra VertExtra) BatchSlice {
-	v := Vertex{
-		Pos:   quadInner.A().AsVec3(),
-		Norm:  Vec3{0, 0, -g.XRightYUpZAway()[2]},
-		UV:    uvQuadInner.A(),
-		Color: color,
-		Extra: extra,
+func (g GraphicsProvider) AddQuadOutline2D(batchID uint8, quadInner Quad2D, quadOuter Quad2D, color ColorFA, uvQuadInner Quad2D, uvQuadOuter Quad2D, extra VertExtra) (BatchSlice, DeepError) {
+	dErr := utils.NewDeepError("[PolyApp] AddQuadOutline2D():")
+	dErr.IsErr = false
+	bSlice, err := g.AllocateShapeInBatch(batchID, BatchShape{
+		vertCount: 8,
+		indexes:   []uint32{0, 1, 2, 1, 3, 2, 2, 3, 4, 3, 5, 4, 4, 5, 6, 5, 7, 6, 6, 7, 0, 7, 1, 0},
+	})
+	if err.IsErr {
+		dErr.AddChildDeepError(err)
+		return bSlice, dErr
 	}
-	ai := g.AddVertexToBatch(batchID, v)
-	v.Pos = quadInner.B().AsVec3()
-	v.UV = uvQuadInner.B()
-	bi := g.AddVertexToBatch(batchID, v)
-	v.Pos = quadInner.B().AsVec3()
-	v.UV = uvQuadInner.B()
-	ci := g.AddVertexToBatch(batchID, v)
-	v.Pos = quadInner.B().AsVec3()
-	v.UV = uvQuadInner.B()
-	di := g.AddVertexToBatch(batchID, v)
-	v.Pos = quadOuter.B().AsVec3()
-	v.UV = uvQuadOuter.B()
-	ao := g.AddVertexToBatch(batchID, v)
-	v.Pos = quadOuter.B().AsVec3()
-	v.UV = uvQuadOuter.B()
-	bo := g.AddVertexToBatch(batchID, v)
-	v.Pos = quadOuter.B().AsVec3()
-	v.UV = uvQuadOuter.B()
-	co := g.AddVertexToBatch(batchID, v)
-	v.Pos = quadOuter.B().AsVec3()
-	v.UV = uvQuadOuter.B()
-	do := g.AddVertexToBatch(batchID, v)
-	bSlice := g.AddIndexesToBatch(batchID, ai, ao, bi, ao, bo, bi, bi, bo, ci, bo, co, ci, ci, co, di, co, do, di, di, do, ai, do, ao, ai)
-	bSlice.BatchID = batchID
-	bSlice.VertexStart = ai
-	bSlice.VertexEnd = do + 1
-	return bSlice
+	dErr.AddChildDeepError(g.UpdateQuadOutline2D(bSlice, quadInner, quadOuter, color, uvQuadInner, uvQuadOuter, extra))
+	return bSlice, dErr
 }
-func (g GraphicsProvider) UpdateQuadOutline2D(batchSlice BatchSlice, quadInner Quad2D, quadOuter Quad2D, color ColorFA, uvQuadInner Quad2D, uvQuadOuter Quad2D, extra VertExtra) error {
+func (g GraphicsProvider) UpdateQuadOutline2D(batchSlice BatchSlice, quadInner Quad2D, quadOuter Quad2D, color ColorFA, uvQuadInner Quad2D, uvQuadOuter Quad2D, extra VertExtra) DeepError {
 	if batchSlice.VertLen() != 8 || batchSlice.IdxLen() != 24 {
-		return errors.New("[PolyApp] UpdateQuadOutline2D(): batch slice provided does not have required dimensions for a quad outline")
+		return utils.NewDeepError("[PolyApp] UpdateQuadOutline2D(): batch slice provided does not have required dimensions for a quad outline")
 	}
+	dErr := utils.NewDeepError("[PolyApp] UpdateQuadOutline2D():")
+	dErr.IsErr = false
 	v := Vertex{
 		Pos:   quadInner.A().AsVec3(),
 		Norm:  Vec3{0, 0, -g.XRightYUpZAway()[2]},
@@ -538,41 +552,48 @@ func (g GraphicsProvider) UpdateQuadOutline2D(batchSlice BatchSlice, quadInner Q
 		Color: color,
 		Extra: extra,
 	}
-	g.UpdateVertexInBatch(batchSlice.BatchID, batchSlice.VertexStart, v)
+	dErr.AddChildDeepError(g.UpdateVertexInBatch(batchSlice.BatchID, batchSlice.VertexStart, v))
 	v.Pos = quadInner.B().AsVec3()
 	v.UV = uvQuadInner.B()
-	g.UpdateVertexInBatch(batchSlice.BatchID, batchSlice.VertexStart+1, v)
+	dErr.AddChildDeepError(g.UpdateVertexInBatch(batchSlice.BatchID, batchSlice.VertexStart+1, v))
 	v.Pos = quadInner.B().AsVec3()
 	v.UV = uvQuadInner.B()
-	g.UpdateVertexInBatch(batchSlice.BatchID, batchSlice.VertexStart+2, v)
+	dErr.AddChildDeepError(g.UpdateVertexInBatch(batchSlice.BatchID, batchSlice.VertexStart+2, v))
 	v.Pos = quadInner.B().AsVec3()
 	v.UV = uvQuadInner.B()
-	g.UpdateVertexInBatch(batchSlice.BatchID, batchSlice.VertexStart+3, v)
+	dErr.AddChildDeepError(g.UpdateVertexInBatch(batchSlice.BatchID, batchSlice.VertexStart+3, v))
 	v.Pos = quadOuter.B().AsVec3()
 	v.UV = uvQuadOuter.B()
-	g.UpdateVertexInBatch(batchSlice.BatchID, batchSlice.VertexStart+4, v)
+	dErr.AddChildDeepError(g.UpdateVertexInBatch(batchSlice.BatchID, batchSlice.VertexStart+4, v))
 	v.Pos = quadOuter.B().AsVec3()
 	v.UV = uvQuadOuter.B()
-	g.UpdateVertexInBatch(batchSlice.BatchID, batchSlice.VertexStart+5, v)
+	dErr.AddChildDeepError(g.UpdateVertexInBatch(batchSlice.BatchID, batchSlice.VertexStart+5, v))
 	v.Pos = quadOuter.B().AsVec3()
 	v.UV = uvQuadOuter.B()
-	g.UpdateVertexInBatch(batchSlice.BatchID, batchSlice.VertexStart+6, v)
+	dErr.AddChildDeepError(g.UpdateVertexInBatch(batchSlice.BatchID, batchSlice.VertexStart+6, v))
 	v.Pos = quadOuter.B().AsVec3()
 	v.UV = uvQuadOuter.B()
-	g.UpdateVertexInBatch(batchSlice.BatchID, batchSlice.VertexStart+7, v)
-	return nil
+	dErr.AddChildDeepError(g.UpdateVertexInBatch(batchSlice.BatchID, batchSlice.VertexStart+7, v))
+	return dErr
 }
 
-func (g GraphicsProvider) AddRectOutline2D(batchID uint8, rect Rect2D, thickness float32, color ColorFA, uvRect Rect2D, uvThickness float32, extra VertExtra) BatchSlice {
+func (g GraphicsProvider) AddRectOutline2D(batchID uint8, rect Rect2D, thickness float32, color ColorFA, uvRect Rect2D, uvThickness float32, extra VertExtra) (BatchSlice, DeepError) {
+	dErr := utils.NewDeepError("[PolyApp] AddRectOutline2D():")
+	dErr.IsErr = false
 	innerQuad, uvInnerQuad := rect.Quad(), uvRect.Quad()
 	outerQuad := rect.Translate(Vec2{-thickness, -thickness}).Expand(Vec2{2 * thickness, 2 * thickness}).Quad()
 	uvOuterQuad := uvRect.Translate(Vec2{-uvThickness, -uvThickness}).Expand(Vec2{2 * uvThickness, 2 * uvThickness}).Quad()
-	return g.AddQuadOutline2D(batchID, innerQuad, outerQuad, color, uvInnerQuad, uvOuterQuad, extra)
+	bs, err := g.AddQuadOutline2D(batchID, innerQuad, outerQuad, color, uvInnerQuad, uvOuterQuad, extra)
+	dErr.AddChildDeepError(err)
+	return bs, dErr
 }
 
-func (g GraphicsProvider) UpdateRectOutline2D(batchSlice BatchSlice, rect Rect2D, thickness float32, color ColorFA, uvRect Rect2D, uvThickness float32, extra VertExtra) error {
+func (g GraphicsProvider) UpdateRectOutline2D(batchSlice BatchSlice, rect Rect2D, thickness float32, color ColorFA, uvRect Rect2D, uvThickness float32, extra VertExtra) DeepError {
+	dErr := utils.NewDeepError("[PolyApp] UpdateRectOutline2D():")
+	dErr.IsErr = false
 	innerQuad, uvInnerQuad := rect.Quad(), uvRect.Quad()
 	outerQuad := rect.Translate(Vec2{-thickness, -thickness}).Expand(Vec2{2 * thickness, 2 * thickness}).Quad()
 	uvOuterQuad := uvRect.Translate(Vec2{-uvThickness, -uvThickness}).Expand(Vec2{2 * uvThickness, 2 * uvThickness}).Quad()
-	return g.UpdateQuadOutline2D(batchSlice, innerQuad, outerQuad, color, uvInnerQuad, uvOuterQuad, extra)
+	dErr.AddChildDeepError(g.UpdateQuadOutline2D(batchSlice, innerQuad, outerQuad, color, uvInnerQuad, uvOuterQuad, extra))
+	return dErr
 }
