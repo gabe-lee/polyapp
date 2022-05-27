@@ -2,6 +2,7 @@ package polyapp
 
 import (
 	color "github.com/gabe-lee/color"
+	math "github.com/gabe-lee/genmath"
 	utils "github.com/gabe-lee/genutils"
 	vecs "github.com/gabe-lee/genvecs"
 )
@@ -62,3 +63,52 @@ const (
 	ImgBMP
 	ImgWEBP
 )
+
+type BufferZone struct {
+	Start uint32
+	End   uint32
+}
+
+func (b BufferZone) Len() uint32 {
+	return b.End - b.Start
+}
+
+type BufferZoneLL struct {
+	BufferZone
+	Next *BufferZoneLL
+}
+
+func (b *BufferZoneLL) Insert(zone BufferZone) {
+	overlap, start, end := math.CombineRangesIfOverlap(b.Start, b.End, zone.Start, zone.End)
+	if overlap {
+		b.Start = start
+		b.End = end
+	} else if b.Next != nil {
+		b.Next.Insert(zone)
+	} else {
+		b.Next = &BufferZoneLL{BufferZone: zone}
+	}
+	if b.Next != nil {
+		overlap, start, end = math.CombineRangesIfOverlap(b.Start, b.End, b.Next.Start, b.Next.End)
+		if overlap {
+			b.Start = start
+			b.End = end
+			b.Next = b.Next.Next
+		}
+	}
+}
+
+func (b *BufferZoneLL) Aquire(zoneSize uint32, last *BufferZoneLL) BufferZone {
+	if zoneSize <= b.Len() {
+		zone := BufferZone{Start: b.Start, End: b.Start + zoneSize}
+		b.Start = zone.End
+		if b.Len() == 0 && last != nil {
+			last.Next = b.Next
+		}
+		return zone
+	}
+	if b.Next != nil {
+		return b.Next.Aquire(zoneSize, b)
+	}
+	return BufferZone{}
+}
