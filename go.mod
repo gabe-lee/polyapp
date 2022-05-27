@@ -2,6 +2,8 @@ module github.com/gabe-lee/polyapp
 
 go 1.18
 
+retract v0.0.0-v0.4.3
+
 require github.com/gabe-lee/genvecs v0.4.2
 
 require (
