@@ -10,7 +10,7 @@ type GraphicsInterface interface {
 	XRightYUpZAway() Vec3
 
 	AddRenderer(vertexFlags VertexFlags, shaders []*Shader) (RendererID, DeepError)
-	AddDrawBatch(vertexFlags VertexFlags, textureID uint8, initialSize uint32) (BatchID, DeepError)
+	AddDrawBatch(vertexFlags VertexFlags, textureID TextureID, initialSize uint32) (BatchID, DeepError)
 	AddTexture(texture *Texture) (TextureID, DeepError)
 	AddDrawSurface(size IVec2, mipMaps uint32) (SurfaceID, TextureID, DeepError)
 
