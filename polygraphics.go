@@ -254,7 +254,7 @@ type ShapePrototype struct {
 }
 
 type BatchShape struct {
-	BatchID     uint8
+	BatchID     BatchID
 	IndexZone   BufferZone
 	VertexZone  BufferZone
 	IndexCount  uint32
